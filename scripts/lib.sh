@@ -62,7 +62,7 @@ load_env() {
     SERVER_TYPE:server_type LOCATION:location IMAGE:image TIMEZONE:timezone \
     AUTO_REBOOT_TIME:auto_reboot_time PANGOLIN_VERSION:pangolin_version \
     GERBIL_VERSION:gerbil_version TRAEFIK_VERSION:traefik_version \
-    BADGER_VERSION:badger_version PROTECTION:protection; do
+    BADGER_VERSION:badger_version PROTECTION:protection SSH_PORT:ssh_port; do
     var="${pair%%:*}"; name="${pair##*:}"
     if [[ -n "${!var:-}" ]]; then export "TF_VAR_${name}=${!var}"; fi
   done
@@ -83,12 +83,14 @@ load_env() {
 server_ip()  { tf_out ipv4; }
 server_ip6() { tf_out ipv6; }
 server_id()  { tf_out server_id; }
+server_ssh_port() { local p; p="$(tf_out ssh_port)"; echo "${p:-${SSH_PORT:-2222}}"; }
 
 ssh_opts() {
   local id
   id="$(server_id)"
   [[ -n "$id" ]] || die "Kein Server im State gefunden – zuerst './setup.sh deploy'."
   SSH_OPTS=(
+    -p "$(server_ssh_port)"
     -o BatchMode=yes
     -o ConnectTimeout=10
     -o ServerAliveInterval=15

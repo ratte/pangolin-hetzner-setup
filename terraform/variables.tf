@@ -76,6 +76,17 @@ variable "admin_allowed_cidrs" {
   }
 }
 
+variable "ssh_port" {
+  description = "TCP-Port des SSH-Servers."
+  type        = number
+  default     = 2222
+
+  validation {
+    condition     = var.ssh_port >= 1 && var.ssh_port <= 65535 && floor(var.ssh_port) == var.ssh_port && !contains([80, 443, 3000, 3001, 3002, 3004, 8080], var.ssh_port)
+    error_message = "ssh_port: 1–65535 und nicht von Pangolin belegt (80, 443, 3000–3004, 8080)."
+  }
+}
+
 variable "dashboard_domain" {
   description = "FQDN des Pangolin-Dashboards, z. B. pangolin.example.ch."
   type        = string

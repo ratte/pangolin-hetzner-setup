@@ -73,17 +73,21 @@ locals {
   server_files = {
     sshd_hardening = templatefile("${path.module}/templates/sshd-hardening.conf.tftpl", {
       admin_user = var.admin_user
+      ssh_port   = var.ssh_port
     })
     settings_env = templatefile("${path.module}/templates/settings.env.tftpl", {
       admin_user       = var.admin_user
       admin_cidrs      = join(" ", var.admin_allowed_cidrs)
       dashboard_domain = var.dashboard_domain
+      ssh_port         = var.ssh_port
     })
     unattended_upgrades = templatefile("${path.module}/templates/52unattended-upgrades-local.tftpl", {
       auto_reboot      = var.auto_reboot_time != "off"
       auto_reboot_time = var.auto_reboot_time == "off" ? "04:00" : var.auto_reboot_time
     })
-    fail2ban_jail = file("${path.module}/../server/fail2ban-jail.local")
+    fail2ban_jail = templatefile("${path.module}/templates/fail2ban-jail.local.tftpl", {
+      ssh_port = var.ssh_port
+    })
     auto_upgrades = file("${path.module}/../server/21auto-upgrades-pangolin")
     docker_daemon = file("${path.module}/../server/docker-daemon.json")
     firewall      = file("${path.module}/../server/pangolin-firewall.sh")

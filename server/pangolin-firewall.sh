@@ -3,7 +3,7 @@
 # Verwaltet von pangolin-hetzner-setup. Idempotent, kann jederzeit erneut laufen.
 #
 # Öffentlich: 80/tcp, 443/tcp, 443/udp (HTTP/3), 51820/udp und 21820/udp (WireGuard).
-# SSH (22/tcp): aus ADMIN_CIDRS in /etc/pangolin-setup/settings.env ("any" = überall).
+# SSH (SSH_PORT/tcp, Standard 2222): aus ADMIN_CIDRS in /etc/pangolin-setup/settings.env ("any" = überall).
 #
 # Hinweis: Docker veröffentlicht Container-Ports über eigene iptables-Regeln an ufw
 # vorbei. Die ufw-Regeln für 80/443/51820/21820 sind trotzdem gesetzt (IPv6 via
@@ -15,6 +15,7 @@ SETTINGS=/etc/pangolin-setup/settings.env
 # shellcheck source=/dev/null
 source "$SETTINGS"
 : "${ADMIN_CIDRS:?ADMIN_CIDRS nicht gesetzt}"
+SSH_PORT="${SSH_PORT:-2222}"
 
 ufw default deny incoming >/dev/null
 ufw default allow outgoing >/dev/null
@@ -29,9 +30,9 @@ done
 # Admin-Zugang (SSH)
 for cidr in $ADMIN_CIDRS; do
   if [[ "$cidr" == "any" ]]; then
-    ufw allow 22/tcp comment 'admin-ssh' >/dev/null
+    ufw allow "${SSH_PORT}/tcp" comment 'admin-ssh' >/dev/null
   else
-    ufw allow from "$cidr" to any port 22 proto tcp comment 'admin-ssh' >/dev/null
+    ufw allow from "$cidr" to any port "$SSH_PORT" proto tcp comment 'admin-ssh' >/dev/null
   fi
 done
 

@@ -33,7 +33,7 @@ tf_apply() {
 }
 
 wait_for_ssh() {
-  info "Warte auf SSH-Zugang als ${ADMIN_USER}@$(server_ip) (max. 10 min)"
+  info "Warte auf SSH-Zugang als ${ADMIN_USER}@$(server_ip):$(server_ssh_port) (max. 10 min)"
   local deadline=$((SECONDS + 600))
   until remote true 2>/dev/null; do
     (( SECONDS < deadline )) || die "SSH nicht erreichbar. Passt dein lokaler Key zu https://github.com/${GITHUB_USER:-ratte}.keys? (SSH_KEY_FILE in .env)"

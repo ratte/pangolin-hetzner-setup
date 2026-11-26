@@ -37,7 +37,7 @@ cp .env.example .env && chmod 600 .env   # Token, Domain, E-Mail eintragen
 | Server | Hetzner Cloud `cx23` (2 vCPU, 4 GB RAM, 40 GB), Ubuntu 24.04, IPv4 + IPv6 |
 | Provisionierung | OpenTofu (Terraform-kompatibel) + cloud-init |
 | SSH-Keys | Automatisch von `https://github.com/ratte.keys` |
-| Login | Benutzer `ratte` mit sudo, root-Login und Passwort-Login deaktiviert |
+| Login | SSH auf **Port 2222** (22 geschlossen), Benutzer `ratte` mit sudo, root-Login und Passwort-Login deaktiviert |
 | Firewall | **ufw auf dem Node selbst** (keine Hetzner Cloud Firewall) |
 | Admin-Zugang | Zu Beginn überall offen (`ADMIN_ALLOWED_CIDRS=any`), später einschränkbar |
 | Brute-Force-Schutz | fail2ban: Jails `sshd` (aggressive) und `recidive`, Bans via nftables |
@@ -54,7 +54,7 @@ cp .env.example .env && chmod 600 .env   # Token, Domain, E-Mail eintragen
    ┌────────────┴─────────────────────────────────────────┐
    │ Hetzner CX23 – Ubuntu 24.04                          │
    │                                                      │
-   │  ufw:  22/tcp (Admin)   80/tcp  443/tcp  443/udp     │
+   │  ufw:  2222/tcp (SSH)  80/tcp  443/tcp  443/udp      │
    │        51820/udp  21820/udp        fail2ban (nft)    │
    │                                                      │
    │  ┌──────── Docker: /opt/pangolin ──────────────────┐ │
@@ -136,6 +136,7 @@ jederzeit erneut aus. Danach in Pangolin eine Site anlegen und auf dem Zielsyste
 | `PROTECTION` | `false` | Hetzner Lösch-/Rebuild-Schutz |
 | `GITHUB_USER` | `ratte` | Quelle der SSH-Keys |
 | `ADMIN_USER` | `ratte` | Login-Benutzer auf dem Server |
+| `SSH_PORT` | `2222` | SSH-Port auf dem Server |
 | `ADMIN_ALLOWED_CIDRS` | `any` | SSH-Quellnetze beim Erstellen, mehrere in Anführungszeichen mit Leerzeichen |
 | `SSH_KEY_FILE` | – | Privater Key, falls nicht im ssh-agent/Standardpfad |
 | `PANGOLIN_VERSION` / `GERBIL_VERSION` / `TRAEFIK_VERSION` / `BADGER_VERSION` | siehe `terraform/variables.tf` | Fixierte Versionen |
@@ -167,7 +168,8 @@ jederzeit erneut aus. Danach in Pangolin eine Site anlegen und auf dem Zielsyste
   (`openssl rand -hex 32`) und der einmalige Setup-Token werden erst auf dem Server
   erzeugt. Der Hetzner-API-Token steht nur in `.env` (gitignored). Als
   Provider-Argument landet er nicht im tfstate.
-- **SSH**: nur Public-Key, nur Benutzer `ratte`, kein root, `MaxAuthTries 3`.
+- **SSH**: Port 2222 (die Socket-Aktivierung von Ubuntu 24.04 auf Port 22 wird
+  abgeschaltet), nur Public-Key, nur Benutzer `ratte`, kein root, `MaxAuthTries 3`.
   Hetzner erhält die Keys ebenfalls, deshalb wird kein root-Passwort per Mail verschickt.
 - **Firewall auf dem Node (ufw)**: eingehend alles blockiert ausser den nötigen Ports.
   Docker veröffentlicht Container-Ports über eigene iptables-Regeln an ufw vorbei.
@@ -197,13 +199,13 @@ jederzeit erneut aus. Danach in Pangolin eine Site anlegen und auf dem Zielsyste
 `./setup.sh test` (läuft auch automatisch am Ende von `deploy`) prüft:
 
 **Auf dem Server** (per SSH): cloud-init/Bootstrap abgeschlossen, keine
-fehlgeschlagenen Units, Speicherplatz, NTP, effektive sshd-Konfiguration, ufw aktiv
+fehlgeschlagenen Units, Speicherplatz, NTP, effektive sshd-Konfiguration inkl. Port, ufw aktiv
 mit allen Regeln, fail2ban mit beiden Jails, unattended-upgrades, Docker, alle drei
 Container laufen (inkl. Neustart-Zähler), Pangolin-Healthcheck, interne API,
 Traefik-Ping, Gerbil-Schlüssel, Datenbank, Secret gesetzt, Dateirechte, Zertifikat in
-`acme.json`, lauschende Ports 80/443/51820/21820.
+`acme.json`, lauschende Ports 2222/80/443/51820/21820.
 
-**Von aussen**: Ports 22/80/443 offen, interne Ports 3000–3004/8080 **zu**, root-Login
+**Von aussen**: Ports 2222/80/443 offen, Port 22 und interne Ports 3000–3004/8080 **zu**, root-Login
 abgewiesen, Server bietet nur Public-Key an, DNS A/AAAA korrekt, HTTP→HTTPS-Umleitung,
 gültiges Let's-Encrypt-Zertifikat (nicht das Traefik-Standardzertifikat), API meldet
 `Healthy`, Setup-Seite erreichbar.

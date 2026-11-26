@@ -36,25 +36,34 @@ else
 fi
 
 # --- SSH-Härtung ---------------------------------------------------------------
+# shellcheck source=/dev/null
+source /etc/pangolin-setup/settings.env 2>/dev/null || true
+SSH_PORT="${SSH_PORT:-2222}"
 sshd_cfg="$(sshd -T 2>/dev/null)"
+grep -qx "port ${SSH_PORT}" <<<"$sshd_cfg" && pass "SSH: Port ${SSH_PORT}" || fail "SSH: Port ${SSH_PORT}" "$(grep '^port ' <<<"$sshd_cfg" | xargs)"
+grep -qx 'port 22' <<<"$sshd_cfg" && [[ "$SSH_PORT" != 22 ]] && fail "SSH: Port 22 deaktiviert" || pass "SSH: Port 22 deaktiviert"
 grep -qx 'permitrootlogin no' <<<"$sshd_cfg" && pass "SSH: root-Login deaktiviert" || fail "SSH: root-Login deaktiviert"
 grep -qx 'passwordauthentication no' <<<"$sshd_cfg" && pass "SSH: Passwort-Login deaktiviert" || fail "SSH: Passwort-Login deaktiviert"
 grep -qx 'kbdinteractiveauthentication no' <<<"$sshd_cfg" && pass "SSH: Keyboard-Interactive deaktiviert" || fail "SSH: Keyboard-Interactive deaktiviert"
 check "SSH-Dienst aktiv" systemctl is-active --quiet ssh
+if [[ "$SSH_PORT" != 22 ]] && systemctl is-active --quiet ssh.socket; then
+  fail "ssh.socket deaktiviert" "Socket-Aktivierung hört noch auf Port 22"
+else
+  pass "ssh.socket deaktiviert"
+fi
 
 # --- Firewall (ufw) ------------------------------------------------------------
 ufw_status="$(ufw status verbose 2>/dev/null)"
 grep -q '^Status: active' <<<"$ufw_status" && pass "ufw aktiv" || fail "ufw aktiv"
 grep -q 'deny (incoming)' <<<"$ufw_status" && pass "ufw: eingehend standardmässig blockiert" || fail "ufw: eingehend standardmässig blockiert"
-for rule in "22/tcp" "80/tcp" "443/tcp" "443/udp" "51820/udp" "21820/udp"; do
+for rule in "${SSH_PORT}/tcp" "80/tcp" "443/tcp" "443/udp" "51820/udp" "21820/udp"; do
   if grep -Eq "^${rule}[[:space:]].*ALLOW IN" <<<"$ufw_status"; then
     pass "ufw-Regel ${rule}"
   else
     fail "ufw-Regel ${rule}"
   fi
 done
-# shellcheck source=/dev/null
-source /etc/pangolin-setup/settings.env 2>/dev/null && pass "Admin-Netze (SSH)" "${ADMIN_CIDRS:-?}"
+pass "Admin-Netze (SSH)" "${ADMIN_CIDRS:-?}"
 
 # --- fail2ban ------------------------------------------------------------------
 check "fail2ban aktiv" systemctl is-active --quiet fail2ban
@@ -102,7 +111,7 @@ fi
 
 # --- Lauschende Ports ----------------------------------------------------------
 listening="$(ss -Hlntu 2>/dev/null)"
-for p in tcp:80 tcp:443 udp:51820 udp:21820; do
+for p in "tcp:${SSH_PORT}" tcp:80 tcp:443 udp:51820 udp:21820; do
   proto="${p%%:*}"; port="${p##*:}"
   if awk -v pr="$proto" -v po="$port" '$1==pr && $5 ~ (":" po "$") {f=1} END {exit !f}' <<<"$listening"; then
     pass "Port ${port}/${proto} lauscht"

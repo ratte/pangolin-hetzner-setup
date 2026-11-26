@@ -26,8 +26,12 @@ output "initial_setup_url" {
   value = "https://${var.dashboard_domain}/auth/initial-setup"
 }
 
+output "ssh_port" {
+  value = var.ssh_port
+}
+
 output "ssh_command" {
-  value = "ssh ${var.admin_user}@${hcloud_server.pangolin.ipv4_address}"
+  value = "ssh -p ${var.ssh_port} ${var.admin_user}@${hcloud_server.pangolin.ipv4_address}"
 }
 
 output "ssh_key_ids" {

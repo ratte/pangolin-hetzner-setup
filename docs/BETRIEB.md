@@ -78,7 +78,7 @@ Tunnel über Gerbil laufen weiter. Das Archiv enthält Geheimnisse: sicher aufbe
 Wiederherstellen (z. B. nach `recreate`):
 
 ```bash
-scp -o UserKnownHostsFile=.state/known_hosts_<id> .state/backups/pangolin-….tar.gz ratte@<ip>:/tmp/
+scp -P 2222 -o UserKnownHostsFile=.state/known_hosts_<id> .state/backups/pangolin-….tar.gz ratte@<ip>:/tmp/
 ./setup.sh ssh 'cd /opt/pangolin && sudo docker compose down \
   && sudo tar -xzf /tmp/pangolin-….tar.gz -C /opt/pangolin \
   && sudo docker compose up -d && rm /tmp/pangolin-….tar.gz'
@@ -112,6 +112,7 @@ DNS-Einträge danach selbst entfernen.
 
 | Symptom | Ursache / Lösung |
 |---|---|
+| Direkter Login ohne Skript | `ssh -p 2222 ratte@<ip>` |
 | `SSH nicht erreichbar` | Lokaler Key passt nicht zu `github.com/ratte.keys` → `SSH_KEY_FILE` setzen oder `ssh-add` |
 | `REMOTE HOST IDENTIFICATION HAS CHANGED` | Wird durch eigene `known_hosts` pro Server-ID vermieden. Sonst `.state/known_hosts_*` löschen |
 | cloud-init meldet Fehler | `./setup.sh ssh 'sudo cloud-init status --long; sudo tail -100 /var/log/cloud-init-output.log'` |

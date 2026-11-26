@@ -46,13 +46,16 @@ fi
 # --- 2. Von aussen ----------------------------------------------------------------
 section "Prüfungen von aussen"
 
-for port in 22 80 443; do
+SSH_P="$(server_ssh_port)"
+for port in "$SSH_P" 80 443; do
   if nc -z -w 5 "$IP" "$port" 2>/dev/null; then result PASS "TCP-Port $port erreichbar"
   else result FAIL "TCP-Port $port erreichbar"; fi
 done
-for port in 3000 3001 3002 3004 8080; do
-  if nc -z -w 3 "$IP" "$port" 2>/dev/null; then result FAIL "Interner Port $port NICHT erreichbar" "offen!"
-  else result PASS "Interner Port $port NICHT erreichbar"; fi
+closed_ports=(3000 3001 3002 3004 8080)
+[[ "$SSH_P" != 22 ]] && closed_ports=(22 "${closed_ports[@]}")
+for port in "${closed_ports[@]}"; do
+  if nc -z -w 3 "$IP" "$port" 2>/dev/null; then result FAIL "Port $port geschlossen" "offen!"
+  else result PASS "Port $port geschlossen"; fi
 done
 
 ssh_opts

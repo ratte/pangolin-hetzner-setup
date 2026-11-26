@@ -17,9 +17,15 @@ mkdir -p "$STATE_DIR"
 log "== Start pangolin-bootstrap"
 
 # --- SSH ---------------------------------------------------------------------
-log "SSH-Konfiguration prüfen und neu laden"
+log "SSH auf Port ${SSH_PORT:-2222} umstellen"
 sshd -t
-systemctl restart ssh
+# Ubuntu 24.04 startet sshd per Socket-Aktivierung (ssh.socket, Port 22).
+# Auf klassischen ssh.service umstellen, damit "Port" aus sshd_config gilt.
+systemctl disable --now ssh.socket 2>/dev/null || true
+rm -f /etc/systemd/system/ssh.service.d/00-socket.conf /etc/systemd/system/ssh.socket.d/addresses.conf
+systemctl daemon-reload
+systemctl enable ssh.service
+systemctl restart ssh.service
 
 # --- Firewall ----------------------------------------------------------------
 log "Firewall (ufw) einrichten"
