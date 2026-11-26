@@ -16,12 +16,14 @@ case " ${ID:-} ${ID_LIKE:-} " in
 esac
 command -v apt-get >/dev/null || die "apt-get nicht gefunden."
 
-if [[ $EUID -eq 0 ]]; then
-  SUDO=()
-else
+# sudo wird erst ermittelt, wenn tatsächlich etwas installiert werden muss.
+SUDO=()
+need_sudo() {
+  [[ $EUID -eq 0 ]] && return 0
+  ((${#SUDO[@]} > 0)) && return 0
   command -v sudo >/dev/null || die "sudo fehlt – als root ausführen oder sudo installieren."
   SUDO=(sudo)
-fi
+}
 
 mapfile -t packages < <(
   sed -n '/<!-- apt-packages:start -->/,/<!-- apt-packages:end -->/p' "$REQ_FILE" \
@@ -29,11 +31,23 @@ mapfile -t packages < <(
 )
 ((${#packages[@]} > 0)) || die "Keine Pakete in $REQ_FILE gefunden."
 
-info "APT-Pakete installieren: ${packages[*]}"
+missing=()
+for pkg in "${packages[@]}"; do
+  if [[ "$(dpkg-query -W -f='${db:Status-Status}' "$pkg" 2>/dev/null)" != "installed" ]]; then
+    missing+=("$pkg")
+  fi
+done
+
 export DEBIAN_FRONTEND=noninteractive
-"${SUDO[@]}" apt-get update -qq
-"${SUDO[@]}" apt-get install -y -qq "${packages[@]}"
-ok "APT-Pakete installiert"
+if ((${#missing[@]} == 0)); then
+  ok "APT-Pakete bereits vorhanden: ${packages[*]}"
+else
+  info "Fehlende APT-Pakete installieren: ${missing[*]}"
+  need_sudo
+  "${SUDO[@]}" apt-get update -qq
+  "${SUDO[@]}" apt-get install -y -qq "${missing[@]}"
+  ok "APT-Pakete installiert"
+fi
 
 if command -v tofu >/dev/null 2>&1; then
   ok "OpenTofu bereits vorhanden: $(tofu version | head -n1)"
@@ -41,6 +55,7 @@ elif command -v terraform >/dev/null 2>&1; then
   ok "Terraform vorhanden (wird statt OpenTofu verwendet): $(terraform version | head -n1)"
 else
   info "OpenTofu-Repository einrichten (packages.opentofu.org)"
+  need_sudo
   "${SUDO[@]}" install -m 0755 -d /etc/apt/keyrings
   curl -fsSL https://get.opentofu.org/opentofu.gpg \
     | "${SUDO[@]}" tee /etc/apt/keyrings/opentofu.gpg >/dev/null
