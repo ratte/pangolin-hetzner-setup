@@ -2,7 +2,7 @@
 
 Automatisiertes, gehärtetes Setup eines [Pangolin](https://github.com/fosrl/pangolin)-Servers
 (Tunnel-Reverse-Proxy mit Identity-Management, Alternative zu Cloudflare Tunnel) auf einem
-Hetzner-Cloud-Server **CX23** mit Ubuntu 24.04.
+[Hetzner-Cloud](https://www.hetzner.com/de/cloud/)-Server **CX23** mit Ubuntu 26.04.
 
 Ein Befehl erstellt den Server, härtet ihn, startet Pangolin, wartet auf DNS und
 Zertifikat und testet anschliessend die laufende Maschine:
