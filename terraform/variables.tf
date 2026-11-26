@@ -57,7 +57,7 @@ variable "github_user" {
 variable "admin_user" {
   description = "Login-Benutzer auf dem Server (root-Login wird deaktiviert)."
   type        = string
-  default     = "ratte"
+  default     = "peng"
 
   validation {
     condition     = can(regex("^[a-z_][a-z0-9_-]{0,31}$", var.admin_user)) && var.admin_user != "root"

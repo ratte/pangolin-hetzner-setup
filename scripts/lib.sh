@@ -74,10 +74,37 @@ load_env() {
     export TF_VAR_admin_allowed_cidrs
   fi
 
-  ADMIN_USER="${ADMIN_USER:-ratte}"
+  ADMIN_USER="${ADMIN_USER:-peng}"
+
+  # Existiert der Server schon, gilt der Benutzer aus dem OpenTofu-State.
+  if command -v tofu >/dev/null 2>&1 || command -v terraform >/dev/null 2>&1; then
+    local state_user
+    state_user="$(tf_out admin_user || true)"
+    if [[ -n "$state_user" && "$state_user" != "$ADMIN_USER" ]]; then
+      warn "Server wurde mit Benutzer '${state_user}' erstellt (.env: '${ADMIN_USER}') – verwende '${state_user}'."
+      ADMIN_USER="$state_user"
+    fi
+    [[ -n "$state_user" ]] && export TF_VAR_admin_user="$ADMIN_USER"
+  fi
   DNS_RESOLVER="${DNS_RESOLVER:-1.1.1.1}"
   mkdir -p "$STATE_DIR"
   chmod 700 "$STATE_DIR"
+}
+
+valid_username() { [[ "$1" =~ ^[a-z_][a-z0-9_-]{0,31}$ && "$1" != root ]]; }
+
+# Wert in .env setzen (vorhandene Zeile ersetzen, sonst anhängen). Rechte bleiben erhalten.
+set_env_value() {
+  local key="$1" value="$2" tmp
+  tmp="$(mktemp)"
+  if grep -q "^${key}=" "$ENV_FILE"; then
+    awk -v k="$key" -v v="$value" 'index($0, k "=") == 1 { print k "=" v; next } { print }' "$ENV_FILE" > "$tmp"
+  else
+    cat "$ENV_FILE" > "$tmp"
+    printf '%s=%s\n' "$key" "$value" >> "$tmp"
+  fi
+  cat "$tmp" > "$ENV_FILE"
+  rm -f "$tmp"
 }
 
 server_ip()  { tf_out ipv4; }

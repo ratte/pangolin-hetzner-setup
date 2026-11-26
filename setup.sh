@@ -119,6 +119,28 @@ show_token() {
   echo "    (Der Token ist nur bis zur Erstellung des ersten Admins gültig.)"
 }
 
+# Benutzername für den neuen Server abfragen (Vorschlag aus .env, Standard "peng").
+prompt_admin_user() {
+  local user="${ADMIN_USER:-peng}" answer
+  if [[ "${AUTO_APPROVE:-false}" == "true" || ! -t 0 ]]; then
+    info "Server-Benutzer: ${user}"
+  else
+    while true; do
+      read -r -p "Benutzername für den Server [${user}]: " answer
+      answer="${answer:-$user}"
+      if valid_username "$answer"; then user="$answer"; break; fi
+      warn "Ungültig: Kleinbuchstaben, Ziffern, '_' und '-', max. 32 Zeichen, nicht root."
+    done
+  fi
+  valid_username "$user" || die "Ungültiger Benutzername in .env: ${user}"
+  if [[ "$user" != "$(sed -n 's/^ADMIN_USER=//p' "$ENV_FILE" | tail -n1)" ]]; then
+    set_env_value ADMIN_USER "$user"
+    ok "ADMIN_USER=${user} in .env gespeichert"
+  fi
+  ADMIN_USER="$user"
+  export TF_VAR_admin_user="$user"
+}
+
 cmd_deploy() {
   if [[ "${SKIP_REQUIREMENTS:-false}" != "true" ]]; then
     bash "$REPO_DIR/scripts/install-requirements.sh"
@@ -128,6 +150,11 @@ cmd_deploy() {
   info "OpenTofu initialisieren"
   tf init -input=false -upgrade >/dev/null
   ok "Provider bereit"
+  if [[ -z "$(server_id)" ]]; then
+    prompt_admin_user
+  else
+    info "Bestehender Server, Benutzer: ${ADMIN_USER}"
+  fi
   info "Infrastruktur anlegen/aktualisieren"
   tf_apply -input=false
   ok "Server: $(server_ip) / $(server_ip6)"
@@ -203,6 +230,7 @@ cmd_recreate() {
   warn "Der Server wird gelöscht und neu erstellt. Alle Pangolin-Daten gehen verloren!"
   confirm "Wirklich neu aufsetzen?" || die "Abgebrochen."
   tf init -input=false >/dev/null
+  prompt_admin_user
   tf_apply -input=false -replace=hcloud_server.pangolin
   SKIP_REQUIREMENTS=true cmd_deploy
 }

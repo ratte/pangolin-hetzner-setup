@@ -78,7 +78,7 @@ Tunnel über Gerbil laufen weiter. Das Archiv enthält Geheimnisse: sicher aufbe
 Wiederherstellen (z. B. nach `recreate`):
 
 ```bash
-scp -P 2222 -o UserKnownHostsFile=.state/known_hosts_<id> .state/backups/pangolin-….tar.gz ratte@<ip>:/tmp/
+scp -P 2222 -o UserKnownHostsFile=.state/known_hosts_<id> .state/backups/pangolin-….tar.gz peng@<ip>:/tmp/
 ./setup.sh ssh 'cd /opt/pangolin && sudo docker compose down \
   && sudo tar -xzf /tmp/pangolin-….tar.gz -C /opt/pangolin \
   && sudo docker compose up -d && rm /tmp/pangolin-….tar.gz'
@@ -95,7 +95,7 @@ damit ein `apply` den Server nie unbeabsichtigt neu erstellt. Möglichkeiten:
 - **Kleine Änderung**: direkt auf dem Server in `/opt/pangolin/config/…` anpassen und
   `sudo docker compose restart` (Templates im Repo nachziehen!)
 - **Neu aufsetzen**: `./setup.sh backup`, `./setup.sh recreate`, Backup zurückspielen
-- **Neuer GitHub-Key**: auf dem Server in `~ratte/.ssh/authorized_keys` ergänzen
+- **Neuer GitHub-Key**: auf dem Server in `~peng/.ssh/authorized_keys` ergänzen
   (oder `recreate`)
 
 ## Server löschen
@@ -112,7 +112,7 @@ DNS-Einträge danach selbst entfernen.
 
 | Symptom | Ursache / Lösung |
 |---|---|
-| Direkter Login ohne Skript | `ssh -p 2222 ratte@<ip>` |
+| Direkter Login ohne Skript | `ssh -p 2222 peng@<ip>` (bzw. dein gewählter Benutzer) |
 | `SSH nicht erreichbar` | Lokaler Key passt nicht zu `github.com/ratte.keys` → `SSH_KEY_FILE` setzen oder `ssh-add` |
 | `REMOTE HOST IDENTIFICATION HAS CHANGED` | Wird durch eigene `known_hosts` pro Server-ID vermieden. Sonst `.state/known_hosts_*` löschen |
 | cloud-init meldet Fehler | `./setup.sh ssh 'sudo cloud-init status --long; sudo tail -100 /var/log/cloud-init-output.log'` |

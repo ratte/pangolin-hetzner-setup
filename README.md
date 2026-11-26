@@ -37,7 +37,7 @@ cp .env.example .env && chmod 600 .env   # Token, Domain, E-Mail eintragen
 | Server | Hetzner Cloud `cx23` (2 vCPU, 4 GB RAM, 40 GB), Ubuntu 24.04, IPv4 + IPv6 |
 | Provisionierung | OpenTofu (Terraform-kompatibel) + cloud-init |
 | SSH-Keys | Automatisch von `https://github.com/ratte.keys` |
-| Login | SSH auf **Port 2222** (22 geschlossen), Benutzer `ratte` mit sudo, root-Login und Passwort-Login deaktiviert |
+| Login | SSH auf **Port 2222** (22 geschlossen), Benutzer `peng` (beim Start abgefragt) mit sudo, root-Login und Passwort-Login deaktiviert |
 | Firewall | **ufw auf dem Node selbst** (keine Hetzner Cloud Firewall) |
 | Admin-Zugang | Zu Beginn überall offen (`ADMIN_ALLOWED_CIDRS=any`), später einschränkbar |
 | Brute-Force-Schutz | fail2ban: Jails `sshd` (aggressive) und `recidive`, Bans via nftables |
@@ -95,7 +95,7 @@ git clone git@github.com:ratte/Pangolin-hetzner-setup.git
 cd Pangolin-hetzner-setup
 cp .env.example .env && chmod 600 .env
 nano .env                      # HCLOUD_TOKEN, DASHBOARD_DOMAIN, BASE_DOMAIN, LETSENCRYPT_EMAIL
-./setup.sh                     # fragt vor dem Erstellen des Servers nach
+./setup.sh                     # fragt den Server-Benutzer ab (Vorschlag: peng), dann Bestätigung
 ```
 
 Während das Skript läuft, zeigt es die Server-IP an. Setze dann beim DNS-Anbieter:
@@ -135,7 +135,7 @@ jederzeit erneut aus. Danach in Pangolin eine Site anlegen und auf dem Zielsyste
 | `AUTO_REBOOT_TIME` | `04:00` | Neustart nach Kernel-Updates, `off` zum Abschalten |
 | `PROTECTION` | `false` | Hetzner Lösch-/Rebuild-Schutz |
 | `GITHUB_USER` | `ratte` | Quelle der SSH-Keys |
-| `ADMIN_USER` | `ratte` | Login-Benutzer auf dem Server |
+| `ADMIN_USER` | `peng` | Login-Benutzer auf dem Server, wird vor dem Erstellen abgefragt |
 | `SSH_PORT` | `2222` | SSH-Port auf dem Server |
 | `ADMIN_ALLOWED_CIDRS` | `any` | SSH-Quellnetze beim Erstellen, mehrere in Anführungszeichen mit Leerzeichen |
 | `SSH_KEY_FILE` | – | Privater Key, falls nicht im ssh-agent/Standardpfad |
@@ -169,7 +169,7 @@ jederzeit erneut aus. Danach in Pangolin eine Site anlegen und auf dem Zielsyste
   erzeugt. Der Hetzner-API-Token steht nur in `.env` (gitignored). Als
   Provider-Argument landet er nicht im tfstate.
 - **SSH**: Port 2222 (die Socket-Aktivierung von Ubuntu 24.04 auf Port 22 wird
-  abgeschaltet), nur Public-Key, nur Benutzer `ratte`, kein root, `MaxAuthTries 3`.
+  abgeschaltet), nur Public-Key, nur der Admin-Benutzer (Standard `peng`), kein root, `MaxAuthTries 3`.
   Hetzner erhält die Keys ebenfalls, deshalb wird kein root-Passwort per Mail verschickt.
 - **Firewall auf dem Node (ufw)**: eingehend alles blockiert ausser den nötigen Ports.
   Docker veröffentlicht Container-Ports über eigene iptables-Regeln an ufw vorbei.
