@@ -219,6 +219,7 @@ cmd_deploy() {
   fi
   load_env
   require_cmd ssh curl dig nc jq openssl
+  ensure_hcloud_token
   info "OpenTofu initialisieren"
   tf init -input=false -upgrade >/dev/null
   ok "Provider bereit"
@@ -303,6 +304,7 @@ cmd_recreate() {
   load_env
   warn "Der Server wird gelöscht und neu erstellt. Alle Pangolin-Daten gehen verloren!"
   confirm "Wirklich neu aufsetzen?" || die "Abgebrochen."
+  ensure_hcloud_token
   tf init -input=false >/dev/null
   prompt_admin_user
   prompt_ssh_keys
@@ -314,6 +316,7 @@ cmd_destroy() {
   load_env
   warn "Server $(server_ip 2>/dev/null || echo '?') und alle verwalteten SSH-Keys werden gelöscht."
   confirm "Wirklich löschen?" || die "Abgebrochen."
+  ensure_hcloud_token
   tf init -input=false >/dev/null
   local args=(-input=false)
   [[ "${AUTO_APPROVE:-false}" == "true" ]] && args+=(-auto-approve)
@@ -327,7 +330,7 @@ main() {
   case "$cmd" in
     deploy)        cmd_deploy ;;
     requirements)  bash "$REPO_DIR/scripts/install-requirements.sh" ;;
-    plan)          load_env; tf init -input=false >/dev/null; tf plan -input=false ;;
+    plan)          load_env; ensure_hcloud_token; tf init -input=false >/dev/null; tf plan -input=false ;;
     test)          bash "$REPO_DIR/scripts/test-server.sh" ;;
     token)         load_env; show_token ;;
     ssh)           load_env; ssh_opts; exec ssh "${SSH_OPTS[@]/BatchMode=yes/BatchMode=no}" "${ADMIN_USER}@$(server_ip)" "$@" ;;

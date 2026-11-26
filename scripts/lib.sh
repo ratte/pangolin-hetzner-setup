@@ -46,12 +46,12 @@ load_env() {
   set +a
   [[ -n "$cli_auto_approve" ]] && AUTO_APPROVE="$cli_auto_approve"
 
-  : "${HCLOUD_TOKEN:?HCLOUD_TOKEN in .env setzen}"
   : "${DASHBOARD_DOMAIN:?DASHBOARD_DOMAIN in .env setzen}"
   : "${BASE_DOMAIN:?BASE_DOMAIN in .env setzen}"
   : "${LETSENCRYPT_EMAIL:?LETSENCRYPT_EMAIL in .env setzen}"
 
-  export TF_VAR_hcloud_token="$HCLOUD_TOKEN"
+  # HCLOUD_TOKEN wird nur für OpenTofu gebraucht -> ensure_hcloud_token (fragt nach, falls leer).
+  [[ -n "${HCLOUD_TOKEN:-}" ]] && export TF_VAR_hcloud_token="$HCLOUD_TOKEN"
   export TF_VAR_dashboard_domain="$DASHBOARD_DOMAIN"
   export TF_VAR_base_domain="$BASE_DOMAIN"
   export TF_VAR_letsencrypt_email="$LETSENCRYPT_EMAIL"
@@ -98,6 +98,52 @@ export_ssh_key_vars() {
   export TF_VAR_github_user="${GITHUB_USER:-}"
   TF_VAR_ssh_public_keys="$(jq -nc --arg k "${SSH_PUBLIC_KEY:-}" 'if $k == "" then [] else [$k] end')"
   export TF_VAR_ssh_public_keys
+}
+
+# HTTP-Status der Hetzner-API für einen Token (Token nicht in der Prozessliste sichtbar).
+hcloud_token_status() {
+  local status
+  status="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 --config - \
+    https://api.hetzner.cloud/v1/locations <<<"header = \"Authorization: Bearer $1\"")" || true
+  echo "${status:-000}"
+}
+
+# HCLOUD_TOKEN sicherstellen: aus .env oder interaktiv abfragen (verdeckte Eingabe).
+ensure_hcloud_token() {
+  if [[ -z "${HCLOUD_TOKEN:-}" ]]; then
+    if [[ "${AUTO_APPROVE:-false}" == "true" || ! -t 0 ]]; then
+      die "HCLOUD_TOKEN fehlt in .env (ohne Terminal bzw. mit AUTO_APPROVE=true keine Rückfrage)."
+    fi
+    local token answer status
+    echo
+    info "Hetzner-API-Token fehlt"
+    echo "    Erstellen: Hetzner Console → Projekt → Sicherheit → API-Tokens (Lesen & Schreiben)"
+    while true; do
+      read -rs -p "HCLOUD_TOKEN (Eingabe unsichtbar): " token
+      echo
+      token="$(tr -d '[:space:]' <<<"$token")"
+      if [[ ! "$token" =~ ^[A-Za-z0-9]{64}$ ]]; then
+        warn "Der Token muss aus 64 Buchstaben/Ziffern bestehen."
+        continue
+      fi
+      status="$(hcloud_token_status "$token")"
+      case "$status" in
+        200)     ok "Token von Hetzner akzeptiert"; break ;;
+        401|403) warn "Token wird von Hetzner abgelehnt (HTTP ${status})." ;;
+        *)       warn "Token konnte nicht geprüft werden (HTTP ${status}) – wird trotzdem verwendet."; break ;;
+      esac
+    done
+    read -r -p "Token in .env speichern (Datei nur für dich lesbar)? [J/n] " answer
+    if [[ ! "$answer" =~ ^[nN]$ ]]; then
+      chmod 600 "$ENV_FILE"
+      set_env_value HCLOUD_TOKEN "$token"
+      ok "HCLOUD_TOKEN in .env gespeichert"
+    else
+      warn "Token gilt nur für diesen Lauf."
+    fi
+    HCLOUD_TOKEN="$token"
+  fi
+  export TF_VAR_hcloud_token="$HCLOUD_TOKEN"
 }
 
 valid_github_user() { [[ "$1" =~ ^[A-Za-z0-9-]{1,39}$ ]]; }

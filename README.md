@@ -72,7 +72,7 @@ cp .env.example .env && chmod 600 .env   # Token, Domain, E-Mail eintragen
 Ablauf von `./setup.sh`:
 
 1. Lokale Voraussetzungen aus `requirements.md` installieren (inkl. OpenTofu)
-2. Abfragen: Benutzername auf dem Server und SSH-Key-Quelle (GitHub-Benutzer oder
+2. Abfragen: Hetzner-API-Token (falls nicht in `.env`), Benutzername auf dem Server und SSH-Key-Quelle (GitHub-Benutzer oder
    eigener Key). Die Antworten werden in `.env` gespeichert und beim nächsten Mal
    vorgeschlagen. Mit `AUTO_APPROVE=true` gibt es keine Rückfragen, dann gelten die Werte aus `.env`.
 3. `tofu apply`: SSH-Keys (von GitHub bzw. aus `.env`) holen, in Hetzner anlegen (vorhandene werden wiederverwendet), Server mit cloud-init erstellen
@@ -97,7 +97,7 @@ Details in **[requirements.md](requirements.md)**. Kurz:
 git clone git@github.com:ratte/Pangolin-hetzner-setup.git
 cd Pangolin-hetzner-setup
 cp .env.example .env && chmod 600 .env
-nano .env                      # HCLOUD_TOKEN, DASHBOARD_DOMAIN, BASE_DOMAIN, LETSENCRYPT_EMAIL
+nano .env                      # DASHBOARD_DOMAIN, BASE_DOMAIN, LETSENCRYPT_EMAIL (HCLOUD_TOKEN optional)
 ./setup.sh                     # fragt Server-Benutzer (Vorschlag: peng) und SSH-Key-Quelle ab
 ```
 
@@ -126,7 +126,7 @@ jederzeit erneut aus. Danach in Pangolin eine Site anlegen und auf dem Zielsyste
 
 | Variable | Standard | Bedeutung |
 |---|---|---|
-| `HCLOUD_TOKEN` | – | Hetzner-API-Token (Pflicht) |
+| `HCLOUD_TOKEN` | leer | Hetzner-API-Token. Fehlt er, fragt das Skript verdeckt danach, prüft ihn bei Hetzner und bietet an, ihn in `.env` zu speichern |
 | `DASHBOARD_DOMAIN` | – | FQDN des Dashboards (Pflicht) |
 | `BASE_DOMAIN` | – | Basis-Domain für Ressourcen (Pflicht) |
 | `LETSENCRYPT_EMAIL` | – | E-Mail für Let's Encrypt (Pflicht) |
