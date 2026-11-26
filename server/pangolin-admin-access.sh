@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# pangolin-admin-access – SSH-Zugang auf bestimmte Netze einschränken, mit
-# automatischem Rollback, falls die Bestätigung ausbleibt.
+# pangolin-admin-access – restrict SSH access to specific networks, with an
+# automatic rollback if no confirmation arrives.
 #
 #   pangolin-admin-access show
-#   pangolin-admin-access set "203.0.113.10/32 2001:db8::/48"   # oder "any"
-#   pangolin-admin-access confirm      # neue Regeln behalten
-#   pangolin-admin-access rollback     # vorherige Regeln wiederherstellen
+#   pangolin-admin-access set "203.0.113.10/32 2001:db8::/48"   # or "any"
+#   pangolin-admin-access confirm      # keep the new rules
+#   pangolin-admin-access rollback     # restore the previous rules
 #
-# Nach "set" wird nach ROLLBACK_SECONDS automatisch zurückgerollt, wenn nicht
-# "confirm" (aus einer NEUEN SSH-Verbindung) aufgerufen wird.
+# After "set", the change is rolled back automatically after ROLLBACK_SECONDS
+# unless "confirm" is called (from a NEW SSH connection).
 set -euo pipefail
 
 SETTINGS=/etc/pangolin-setup/settings.env
@@ -16,7 +16,7 @@ BACKUP=/etc/pangolin-setup/settings.env.bak
 UNIT=pangolin-admin-rollback
 ROLLBACK_SECONDS="${ROLLBACK_SECONDS:-180}"
 
-[[ $EUID -eq 0 ]] || { echo "Bitte mit sudo ausführen." >&2; exit 1; }
+[[ $EUID -eq 0 ]] || { echo "Please run with sudo." >&2; exit 1; }
 
 valid_cidr() {
   local c="$1"
@@ -37,15 +37,15 @@ case "$cmd" in
     ;;
   set)
     new="${2:-}"
-    [[ -n "$new" ]] || { echo "Verwendung: $0 set \"<cidr> [<cidr> ...]|any\"" >&2; exit 2; }
+    [[ -n "$new" ]] || { echo "Usage: $0 set \"<cidr> [<cidr> ...]|any\"" >&2; exit 2; }
     for c in $new; do
-      valid_cidr "$c" || { echo "Ungültiges Netz: $c" >&2; exit 2; }
+      valid_cidr "$c" || { echo "Invalid network: $c" >&2; exit 2; }
     done
     if [[ " $new " == *" any "* ]] && [[ "$new" != "any" ]]; then
-      echo "\"any\" darf nicht mit weiteren Netzen kombiniert werden." >&2; exit 2
+      echo "\"any\" must not be combined with other networks." >&2; exit 2
     fi
     cancel_timer
-    # Bestehendes Backup (letzter bestätigter Stand) nicht überschreiben.
+    # Do not overwrite an existing backup (last confirmed state).
     [[ -f "$BACKUP" ]] || cp -p "$SETTINGS" "$BACKUP"
     tmp="$(mktemp)"
     sed "s|^ADMIN_CIDRS=.*|ADMIN_CIDRS=\"${new}\"|" "$SETTINGS" > "$tmp"
@@ -54,13 +54,13 @@ case "$cmd" in
     /usr/local/sbin/pangolin-firewall >/dev/null
     systemd-run --quiet --unit="$UNIT" --on-active="${ROLLBACK_SECONDS}" \
       /usr/local/sbin/pangolin-admin-access rollback
-    echo "Neue Admin-Netze aktiv: $new"
-    echo "Automatischer Rollback in ${ROLLBACK_SECONDS}s, falls nicht bestätigt (confirm)."
+    echo "New admin networks active: $new"
+    echo "Automatic rollback in ${ROLLBACK_SECONDS}s unless confirmed (confirm)."
     ;;
   confirm)
     cancel_timer
     rm -f "$BACKUP"
-    echo "Admin-Netze bestätigt."
+    echo "Admin networks confirmed."
     ;;
   rollback)
     cancel_timer
@@ -68,13 +68,13 @@ case "$cmd" in
       cat "$BACKUP" > "$SETTINGS"
       rm -f "$BACKUP"
       /usr/local/sbin/pangolin-firewall >/dev/null
-      echo "Rollback ausgeführt: $(grep '^ADMIN_CIDRS=' "$SETTINGS")"
+      echo "Rollback done: $(grep '^ADMIN_CIDRS=' "$SETTINGS")"
     else
-      echo "Kein Backup vorhanden – nichts zurückzurollen."
+      echo "No backup present – nothing to roll back."
     fi
     ;;
   *)
-    echo "Verwendung: $0 {show|set|confirm|rollback}" >&2
+    echo "Usage: $0 {show|set|confirm|rollback}" >&2
     exit 2
     ;;
 esac

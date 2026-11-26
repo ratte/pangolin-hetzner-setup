@@ -1,4 +1,4 @@
-# Geheimnisse und lokaler Zustand
+# Secrets and local state
 .env
 .state/
 

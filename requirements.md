@@ -1,57 +1,57 @@
-# Voraussetzungen (lokale Maschine)
+# Requirements (local machine)
 
-Diese Software wird auf dem Rechner gebraucht, von dem aus `./setup.sh` läuft
-(Ubuntu 22.04+/Debian 12+). `./setup.sh requirements` installiert alles
-automatisch. Das Skript liest die Paketliste **direkt aus dieser Datei**
-(Block zwischen den `apt-packages`-Markierungen). Wer hier ein Paket ergänzt,
-bekommt es also beim nächsten Lauf mitinstalliert.
+This software is needed on the machine that runs `./setup.sh`
+(Ubuntu 22.04+/Debian 12+). `./setup.sh requirements` installs everything
+automatically. The script reads the package list **directly from this file**
+(the block between the `apt-packages` markers), so a package added here is
+installed on the next run.
 
-## APT-Pakete
+## APT packages
 
 <!-- apt-packages:start -->
-- `ca-certificates` – TLS-Zertifikate für HTTPS-Downloads
-- `curl` – HTTP-Abfragen, Zertifikats- und Endpunkt-Tests
-- `gnupg` – Signaturschlüssel des OpenTofu-Repositorys
-- `jq` – JSON-Verarbeitung (Variablen für OpenTofu)
-- `openssh-client` – SSH-Zugriff auf den Server (`ssh`, `ssh-keygen`)
-- `bind9-dnsutils` – `dig` für DNS-Prüfungen
-- `netcat-openbsd` – `nc` für Port-Tests
-- `openssl` – Zertifikatsprüfung
-- `git` – Repository-Verwaltung
-- `coreutils` – Basiswerkzeuge (`timeout`, `base64`, …)
+- `ca-certificates` – TLS certificates for HTTPS downloads
+- `curl` – HTTP requests, certificate and endpoint tests
+- `gnupg` – signing key of the OpenTofu repository
+- `jq` – JSON processing (variables for OpenTofu)
+- `openssh-client` – SSH access to the server (`ssh`, `ssh-keygen`)
+- `bind9-dnsutils` – `dig` for DNS checks
+- `netcat-openbsd` – `nc` for port tests
+- `openssl` – certificate checks
+- `git` – repository management
+- `coreutils` – basic tools (`timeout`, `base64`, …)
 <!-- apt-packages:end -->
 
 ## OpenTofu
 
-| Software | Version | Quelle |
+| Software | Version | Source |
 |---|---|---|
-| `tofu` (OpenTofu) | ≥ 1.6 | Offizielles APT-Repository `packages.opentofu.org` |
+| `tofu` (OpenTofu) | ≥ 1.6 | Official APT repository `packages.opentofu.org` |
 
-Das Skript richtet das OpenTofu-Repository gemäss der offiziellen Anleitung
-(<https://opentofu.org/docs/intro/install/deb/>) ein, falls `tofu` fehlt.
-Ist stattdessen `terraform` (≥ 1.6) installiert, wird dieses verwendet.
+If `tofu` is missing, the script sets up the OpenTofu repository following the
+official guide (<https://opentofu.org/docs/intro/install/deb/>).
+If `terraform` (≥ 1.6) is installed instead, that is used.
 
-OpenTofu lädt beim `init` automatisch diese Provider:
+OpenTofu downloads these providers automatically during `init`:
 
 | Provider | Version |
 |---|---|
 | `hetznercloud/hcloud` | ~> 1.70 |
 | `hashicorp/http` | ~> 3.4 |
 
-## Konten und Zugangsdaten
+## Accounts and credentials
 
-- **Hetzner Cloud**: Projekt und API-Token mit Lese-/Schreibrechten
-  (Console → Projekt → Sicherheit → API-Tokens)
-- **SSH-Key**: entweder ein GitHub-Benutzer mit mindestens einem öffentlichen
-  SSH-Key (`https://github.com/<benutzer>.keys`) oder ein eigener öffentlicher Key
-  (`.pub`-Datei). `./setup.sh` fragt danach. Der passende private Key muss lokal im
-  `ssh-agent` oder unter `~/.ssh/` liegen (oder per `SSH_KEY_FILE` angegeben werden).
-- **DNS**: Zugriff auf die DNS-Zone der Domain, um den A-Record (und optional
-  AAAA sowie einen Wildcard-Record) auf den Server zu setzen
+- **Hetzner Cloud**: a project and an API token with read/write permissions
+  (Console → Project → Security → API tokens)
+- **SSH key**: either a GitHub user with at least one public SSH key
+  (`https://github.com/<user>.keys`) or your own public key (`.pub` file).
+  `./setup.sh` asks for it. The matching private key must be available locally in
+  the `ssh-agent` or under `~/.ssh/` (or be given via `SSH_KEY_FILE`).
+- **DNS**: access to the domain's DNS zone to point the A record (and optionally
+  AAAA and a wildcard record) at the server
 
-## Auf dem Server (automatisch per cloud-init)
+## On the server (automatic via cloud-init)
 
-Nur zur Information, hier ist nichts zu tun:
+For information only, nothing to do here:
 `docker.io`, `docker-compose-v2`, `ufw`, `nftables`, `fail2ban`, `python3-systemd`,
-`unattended-upgrades`, `curl`, `jq`, `openssl` sowie die Container
-`fosrl/pangolin`, `fosrl/gerbil` und `traefik`.
+`unattended-upgrades`, `curl`, `jq`, `openssl` and the containers
+`fosrl/pangolin`, `fosrl/gerbil` and `traefik`.

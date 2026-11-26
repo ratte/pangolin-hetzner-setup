@@ -1,5 +1,5 @@
 ###############################################################################
-# SSH-Keys: GitHub-Benutzer (optional) und/oder direkt angegebene Keys
+# SSH keys: GitHub user (optional) and/or keys given directly
 ###############################################################################
 
 data "http" "github_keys" {
@@ -9,13 +9,13 @@ data "http" "github_keys" {
   lifecycle {
     postcondition {
       condition     = self.status_code == 200 && length(trimspace(self.response_body)) > 0
-      error_message = "Keine öffentlichen SSH-Keys unter https://github.com/${var.github_user}.keys gefunden."
+      error_message = "No public SSH keys found at https://github.com/${var.github_user}.keys."
     }
   }
 }
 
-# Alle Keys im Hetzner-Projekt. Hetzner verbietet doppelte Keys, darum werden
-# bereits vorhandene (nicht von diesem Setup verwaltete) Keys wiederverwendet.
+# All keys in the Hetzner project. Hetzner forbids duplicate keys, so existing
+# keys (not managed by this setup) are reused.
 data "hcloud_ssh_keys" "all" {}
 
 locals {
@@ -30,7 +30,7 @@ locals {
 
   all_keys = concat(local.github_keys, [for k in var.ssh_public_keys : trimspace(k)])
 
-  # Normalisiert auf "<typ> <base64>" (ohne Kommentar); Duplikate zusammengefasst.
+  # Normalized to "<type> <base64>" (without comment); duplicates merged.
   keys_grouped = {
     for k in local.all_keys : join(" ", slice(split(" ", k), 0, 2)) => k...
   }
@@ -71,7 +71,7 @@ locals {
 }
 
 ###############################################################################
-# Dateien für den Server (werden per cloud-init geschrieben)
+# Files for the server (written via cloud-init)
 ###############################################################################
 
 locals {
@@ -153,22 +153,22 @@ resource "hcloud_server" "pangolin" {
   }
 
   lifecycle {
-    # Änderungen an Keys/cloud-init gelten nur bei Neuerstellung (./setup.sh recreate).
+    # Changes to keys/cloud-init only apply when the server is recreated (./setup.sh recreate).
     ignore_changes = [ssh_keys, user_data, image]
 
     precondition {
       condition     = length(local.keys_by_norm) > 0
-      error_message = "Kein SSH-Key angegeben: github_user oder ssh_public_keys setzen (./setup.sh fragt danach)."
+      error_message = "No SSH key given: set github_user or ssh_public_keys (./setup.sh asks for it)."
     }
 
     precondition {
       condition     = length(local.server_ssh_key_ids) > 0
-      error_message = "Es steht kein SSH-Key für den Server zur Verfügung."
+      error_message = "No SSH key is available for the server."
     }
 
     precondition {
       condition     = length(local.user_data) <= 32768
-      error_message = "cloud-init user_data überschreitet das Hetzner-Limit von 32 KiB."
+      error_message = "cloud-init user_data exceeds the Hetzner limit of 32 KiB."
     }
   }
 }

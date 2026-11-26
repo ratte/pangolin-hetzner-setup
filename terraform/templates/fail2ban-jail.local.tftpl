@@ -1,5 +1,5 @@
-# Verwaltet von pangolin-hetzner-setup.
-# Bans laufen über eine eigene nftables-Tabelle (unabhängig von ufw, IPv4 + IPv6).
+# Managed by pangolin-hetzner-setup.
+# Bans use a separate nftables table (independent of ufw, IPv4 + IPv6).
 
 [DEFAULT]
 bantime  = 1h
@@ -16,7 +16,7 @@ port     = ${ssh_port}
 mode     = aggressive
 maxretry = 4
 
-# Wiederholungstäter: 5 Bans innerhalb eines Tages -> 1 Woche auf allen Ports.
+# Repeat offenders: 5 bans within one day -> 1 week on all ports.
 [recidive]
 enabled  = true
 backend  = auto

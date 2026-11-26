@@ -1,33 +1,33 @@
 #!/usr/bin/env bash
-# pangolin-firewall – Host-Firewall (ufw) für den Pangolin-Node.
-# Verwaltet von pangolin-hetzner-setup. Idempotent, kann jederzeit erneut laufen.
+# pangolin-firewall – host firewall (ufw) for the Pangolin node.
+# Managed by pangolin-hetzner-setup. Idempotent, can be run again at any time.
 #
-# Öffentlich: 80/tcp, 443/tcp, 443/udp (HTTP/3), 51820/udp und 21820/udp (WireGuard).
-# SSH (SSH_PORT/tcp, Standard 2222): aus ADMIN_CIDRS in /etc/pangolin-setup/settings.env ("any" = überall).
+# Public: 80/tcp, 443/tcp, 443/udp (HTTP/3), 51820/udp and 21820/udp (WireGuard).
+# SSH (SSH_PORT/tcp, default 2222): from ADMIN_CIDRS in /etc/pangolin-setup/settings.env ("any" = everywhere).
 #
-# Hinweis: Docker veröffentlicht Container-Ports über eigene iptables-Regeln an ufw
-# vorbei. Die ufw-Regeln für 80/443/51820/21820 sind trotzdem gesetzt (IPv6 via
-# docker-proxy, Klarheit). Interne Ports (3000–3004, 8080) werden nicht veröffentlicht.
+# Note: Docker publishes container ports through its own iptables rules, bypassing
+# ufw. The ufw rules for 80/443/51820/21820 are set anyway (IPv6 via docker-proxy,
+# clarity). Internal ports (3000–3004, 8080) are not published.
 set -euo pipefail
 
 SETTINGS=/etc/pangolin-setup/settings.env
-[[ -r "$SETTINGS" ]] || { echo "Fehlt: $SETTINGS" >&2; exit 1; }
+[[ -r "$SETTINGS" ]] || { echo "Missing: $SETTINGS" >&2; exit 1; }
 # shellcheck source=/dev/null
 source "$SETTINGS"
-: "${ADMIN_CIDRS:?ADMIN_CIDRS nicht gesetzt}"
+: "${ADMIN_CIDRS:?ADMIN_CIDRS not set}"
 SSH_PORT="${SSH_PORT:-2222}"
 
 ufw default deny incoming >/dev/null
 ufw default allow outgoing >/dev/null
 
-# Bisherige Admin-Regeln entfernen (höchste Nummer zuerst).
+# Remove previous admin rules (highest number first).
 mapfile -t old_rules < <(ufw status numbered 2>/dev/null \
   | awk -F'[][]' '/# admin-ssh/ { gsub(/ /, "", $2); print $2 }' | sort -rn)
 for n in "${old_rules[@]}"; do
   ufw --force delete "$n" >/dev/null
 done
 
-# Admin-Zugang (SSH)
+# Admin access (SSH)
 for cidr in $ADMIN_CIDRS; do
   if [[ "$cidr" == "any" ]]; then
     ufw allow "${SSH_PORT}/tcp" comment 'admin-ssh' >/dev/null
@@ -36,7 +36,7 @@ for cidr in $ADMIN_CIDRS; do
   fi
 done
 
-# Öffentliche Pangolin-Dienste
+# Public Pangolin services
 ufw allow 80/tcp comment 'pangolin-http' >/dev/null
 ufw allow 443/tcp comment 'pangolin-https' >/dev/null
 ufw allow 443/udp comment 'pangolin-http3' >/dev/null

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# pangolin-bootstrap – einmalige Einrichtung beim ersten Boot (von cloud-init aufgerufen).
-# Verwaltet von pangolin-hetzner-setup. Idempotent: erneuter Aufruf ist unkritisch.
+# pangolin-bootstrap – one-time setup on first boot (called by cloud-init).
+# Managed by pangolin-hetzner-setup. Idempotent: running it again is safe.
 set -euo pipefail
 
 LOG=/var/log/pangolin-bootstrap.log
@@ -17,10 +17,10 @@ mkdir -p "$STATE_DIR"
 log "== Start pangolin-bootstrap"
 
 # --- SSH ---------------------------------------------------------------------
-log "SSH auf Port ${SSH_PORT:-2222} umstellen"
+log "Moving SSH to port ${SSH_PORT:-2222}"
 sshd -t
-# Ubuntu startet sshd ab 24.04 per Socket-Aktivierung (ssh.socket, Port 22).
-# Auf klassischen ssh.service umstellen, damit "Port" aus sshd_config gilt.
+# Since 24.04, Ubuntu starts sshd via socket activation (ssh.socket, port 22).
+# Switch to the classic ssh.service so that "Port" from sshd_config applies.
 systemctl disable --now ssh.socket 2>/dev/null || true
 rm -f /etc/systemd/system/ssh.service.d/00-socket.conf /etc/systemd/system/ssh.socket.d/addresses.conf
 systemctl daemon-reload
@@ -28,21 +28,21 @@ systemctl enable ssh.service
 systemctl restart ssh.service
 
 # --- Firewall ----------------------------------------------------------------
-log "Firewall (ufw) einrichten"
+log "Setting up the firewall (ufw)"
 /usr/local/sbin/pangolin-firewall
 
 # --- fail2ban ----------------------------------------------------------------
-log "fail2ban aktivieren"
+log "Enabling fail2ban"
 touch /var/log/fail2ban.log
 systemctl enable fail2ban
 systemctl restart fail2ban
 
-# --- Automatische Sicherheitsupdates ------------------------------------------
-log "unattended-upgrades aktivieren"
+# --- Automatic security updates ----------------------------------------------
+log "Enabling unattended-upgrades"
 systemctl enable --now unattended-upgrades
 
 # --- Docker ------------------------------------------------------------------
-log "Docker aktivieren"
+log "Enabling Docker"
 systemctl enable --now docker
 usermod -aG docker "$ADMIN_USER"
 
@@ -51,7 +51,7 @@ cd "$PANGOLIN_DIR"
 mkdir -p config/db config/letsencrypt config/traefik/logs
 
 if grep -q '__SERVER_SECRET__' config/config.yml; then
-  log "Server-Secret erzeugen"
+  log "Generating the server secret"
   secret="$(openssl rand -hex 32)"
   sed -i "s|__SERVER_SECRET__|${secret}|" config/config.yml
   unset secret
@@ -59,33 +59,33 @@ fi
 chmod 600 config/config.yml
 
 if [[ ! -s .env ]]; then
-  log "Setup-Token erzeugen"
+  log "Generating the setup token"
   umask 077
   printf 'PANGOLIN_SETUP_TOKEN=%s\n' "$(openssl rand -hex 16)" > .env
 fi
 chmod 600 .env
 
-log "Container-Images laden"
+log "Pulling container images"
 for attempt in 1 2 3 4 5; do
   if docker compose pull --quiet; then
     break
   fi
   if [[ $attempt -eq 5 ]]; then
-    log "FEHLER: docker compose pull fehlgeschlagen"
+    log "ERROR: docker compose pull failed"
     exit 1
   fi
-  log "Pull fehlgeschlagen, neuer Versuch in 15s ($attempt/5)"
+  log "Pull failed, retrying in 15s ($attempt/5)"
   sleep 15
 done
 
-log "Pangolin-Stack starten"
+log "Starting the Pangolin stack"
 docker compose up -d
 
-log "Auf Health-Status von Pangolin warten (max. 5 min)"
+log "Waiting for Pangolin to become healthy (max. 5 min)"
 for _ in $(seq 1 60); do
   status="$(docker inspect -f '{{.State.Health.Status}}' pangolin 2>/dev/null || echo unknown)"
   if [[ "$status" == "healthy" ]]; then
-    log "Pangolin ist healthy"
+    log "Pangolin is healthy"
     break
   fi
   sleep 5
@@ -93,4 +93,4 @@ done
 docker compose ps
 
 touch "$STATE_DIR/bootstrap-done"
-log "== pangolin-bootstrap abgeschlossen"
+log "== pangolin-bootstrap finished"
