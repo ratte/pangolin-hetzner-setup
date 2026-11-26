@@ -48,26 +48,30 @@ cp .env.example .env && chmod 600 .env   # Token, Domain, E-Mail eintragen
 
 ## Architektur
 
-```
-             Internet
-                │
-   ┌────────────┴─────────────────────────────────────────┐
-   │ Hetzner CX23 – Ubuntu 24.04                          │
-   │                                                      │
-   │  ufw:  2222/tcp (SSH)  80/tcp  443/tcp  443/udp      │
-   │        51820/udp  21820/udp        fail2ban (nft)    │
-   │                                                      │
-   │  ┌──────── Docker: /opt/pangolin ──────────────────┐ │
-   │  │ gerbil  ← veröffentlicht 80, 443, 51820, 21820 │ │
-   │  │   └─ traefik (teilt Netz mit gerbil)           │ │
-   │  │        ├─ Let's Encrypt (HTTP-Challenge)        │ │
-   │  │        └─ → pangolin :3000 API / :3002 UI       │ │
-   │  │ pangolin  (SQLite in config/db)                 │ │
-   │  └─────────────────────────────────────────────────┘ │
-   └──────────────────────────────────────────────────────┘
-                │ WireGuard (Newt-Tunnel)
-        Eigene Standorte/Netze mit Newt
-```
+![Architektur: Admin-Rechner, Browser und Standorte erreichen den Hetzner-Server durch ufw; im Docker-Stack leitet traefik zu pangolin weiter, gerbil terminiert WireGuard](docs/architektur.svg)
+
+Die Grafik liest sich von links nach rechts: aussen die Gegenstellen, in der Mitte die
+Host-Firewall, rechts der Docker-Stack.
+
+- **Verwaltung (neutrale Linie):** `setup.sh` legt den Server mit `tofu apply` über die Hetzner-API
+  an, cloud-init richtet ihn beim ersten Start ein. Danach läuft der Zugang nur noch per SSH
+  auf Port 2222 und nur mit Public Key. Port 22 ist zu.
+- **ufw:** Die Firewall läuft auf dem Server selbst, nicht als Hetzner Cloud Firewall. Offen
+  sind nur 2222/tcp, 80/tcp, 443/tcp+udp sowie 51820/udp und 21820/udp für WireGuard.
+- **fail2ban (rot):** liest das sshd-Log und sperrt IPs nach wiederholten Fehlversuchen über
+  nftables. Eine gesperrte IP bekommt auf 2222 „Connection refused“. Das trifft auch die
+  eigene IP, wenn der lokale Key nicht zum Server passt.
+- **HTTPS (blau):** Browser kommen über 80/443 zu `traefik`. traefik terminiert TLS, holt das
+  Zertifikat per HTTP-01 bei Let's Encrypt und leitet zu `pangolin` weiter (`:3002` UI,
+  `:3000` API).
+- **gerbil:** veröffentlicht alle Ports des Stacks. traefik läuft mit `network_mode: gerbil`
+  in dessen Netzwerk. gerbil holt seine Konfiguration intern von pangolin (`:3001`).
+- **WireGuard (grün):** Standorte mit Newt bauen einen Tunnel zu gerbil auf. Anfragen an
+  freigegebene Ressourcen gehen von traefik durch diesen Tunnel zum Standort.
+- **config/:** Datenbank (SQLite), Zertifikate (`acme.json`) und die auf dem Server erzeugten
+  Secrets liegen unter `/opt/pangolin/config`.
+- **unattended-upgrades:** spielt Sicherheitsupdates automatisch ein und startet bei Bedarf
+  um 04:00 neu.
 
 Ablauf von `./setup.sh`:
 
