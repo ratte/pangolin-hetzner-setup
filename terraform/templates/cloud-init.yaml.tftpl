@@ -1,0 +1,95 @@
+#cloud-config
+# Erzeugt von OpenTofu (pangolin-hetzner-setup). Nicht auf dem Server bearbeiten.
+# Enthält bewusst keine Geheimnisse: Server-Secret und Setup-Token werden erst
+# auf dem Server erzeugt.
+
+hostname: ${hostname}
+preserve_hostname: false
+timezone: ${timezone}
+
+package_update: true
+package_upgrade: true
+package_reboot_if_required: false
+packages:
+  - ca-certificates
+  - curl
+  - jq
+  - openssl
+  - ufw
+  - nftables
+  - fail2ban
+  - python3-systemd
+  - unattended-upgrades
+  - docker.io
+  - docker-compose-v2
+
+users:
+  - name: ${admin_user}
+    gecos: Pangolin Admin
+    groups: [sudo]
+    shell: /bin/bash
+    lock_passwd: true
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    ssh_authorized_keys: ${ssh_keys_json}
+
+disable_root: true
+ssh_pwauth: false
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/00-pangolin-hardening.conf
+    encoding: b64
+    content: ${sshd_hardening_b64}
+    permissions: "0644"
+  - path: /etc/fail2ban/jail.local
+    encoding: b64
+    content: ${fail2ban_jail_b64}
+    permissions: "0644"
+  - path: /etc/apt/apt.conf.d/21auto-upgrades-pangolin
+    encoding: b64
+    content: ${auto_upgrades_b64}
+    permissions: "0644"
+  - path: /etc/apt/apt.conf.d/52unattended-upgrades-pangolin
+    encoding: b64
+    content: ${unattended_upgrades_b64}
+    permissions: "0644"
+  - path: /etc/docker/daemon.json
+    encoding: b64
+    content: ${docker_daemon_b64}
+    permissions: "0644"
+  - path: /etc/pangolin-setup/settings.env
+    encoding: b64
+    content: ${settings_env_b64}
+    permissions: "0600"
+  - path: /usr/local/sbin/pangolin-firewall
+    encoding: b64
+    content: ${firewall_b64}
+    permissions: "0755"
+  - path: /usr/local/sbin/pangolin-admin-access
+    encoding: b64
+    content: ${admin_access_b64}
+    permissions: "0755"
+  - path: /usr/local/sbin/pangolin-bootstrap
+    encoding: b64
+    content: ${bootstrap_b64}
+    permissions: "0755"
+  - path: /opt/pangolin/docker-compose.yml
+    encoding: b64
+    content: ${compose_b64}
+    permissions: "0644"
+  - path: /opt/pangolin/config/config.yml
+    encoding: b64
+    content: ${pangolin_config_b64}
+    permissions: "0600"
+  - path: /opt/pangolin/config/traefik/traefik_config.yml
+    encoding: b64
+    content: ${traefik_config_b64}
+    permissions: "0644"
+  - path: /opt/pangolin/config/traefik/dynamic_config.yml
+    encoding: b64
+    content: ${traefik_dynamic_b64}
+    permissions: "0644"
+
+runcmd:
+  - [bash, /usr/local/sbin/pangolin-bootstrap]
+
+final_message: "pangolin-hetzner-setup: cloud-init fertig nach $UPTIME Sekunden"
