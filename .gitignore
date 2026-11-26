@@ -4,6 +4,7 @@
 
 # OpenTofu / Terraform
 terraform/.terraform/
+terraform/.terraform.lock.hcl
 terraform/.terraform.lock.hcl.bak
 terraform/*.tfstate
 terraform/*.tfstate.*
