@@ -34,7 +34,11 @@ tf_bin() {
 
 tf() { "$(tf_bin)" -chdir="$TF_DIR" "$@"; }
 
-tf_out() { tf output -raw "$1" 2>/dev/null; }
+# Einzelnen Output lesen; leer, wenn es (noch) keinen State gibt.
+# Nicht "output -raw": das schreibt bei leerem State eine Warnung auf stdout (Exit-Code 0).
+tf_out() {
+  tf output -json 2>/dev/null | jq -r --arg k "$1" '.[$k].value // empty | if type == "string" or type == "number" or type == "boolean" then . else tojson end'
+}
 
 load_env() {
   [[ -f "$ENV_FILE" ]] || die "$ENV_FILE fehlt. Vorlage kopieren: cp .env.example .env"
