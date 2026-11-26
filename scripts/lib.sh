@@ -169,6 +169,28 @@ valid_pubkey() {
 
 pubkey_fingerprint() { ssh-keygen -l -f <(echo "$1") 2>/dev/null | awk '{print $2 " " $NF}'; }
 
+# Prüft, ob der lokale Key (SSH_KEY_FILE) zu einem der Server-Keys passt.
+# Sonst scheitert jeder Login und fail2ban sperrt die eigene IP.
+check_local_ssh_key() {
+  [[ -n "${SSH_KEY_FILE:-}" ]] || return 0
+  local file="${SSH_KEY_FILE/#\~/$HOME}" local_fp keys="" k
+  [[ -r "$file" ]] || die "SSH_KEY_FILE=${SSH_KEY_FILE} nicht gefunden."
+  if [[ -r "${file}.pub" ]]; then
+    local_fp="$(ssh-keygen -l -f "${file}.pub" 2>/dev/null | awk '{print $2}')"
+  else
+    local_fp="$(ssh-keygen -y -f "$file" 2>/dev/null | ssh-keygen -l -f - 2>/dev/null | awk '{print $2}')"
+  fi
+  [[ -n "$local_fp" ]] || { warn "Fingerprint von ${SSH_KEY_FILE} nicht lesbar – Key-Abgleich übersprungen."; return 0; }
+
+  [[ -n "${SSH_PUBLIC_KEY:-}" ]] && keys+="${SSH_PUBLIC_KEY}"$'\n'
+  [[ -n "${GITHUB_USER:-}" ]] && keys+="$(curl -fsSL "https://github.com/${GITHUB_USER}.keys" 2>/dev/null || true)"$'\n'
+  while IFS= read -r k; do
+    [[ -n "$k" ]] || continue
+    [[ "$(ssh-keygen -l -f <(echo "$k") 2>/dev/null | awk '{print $2}')" == "$local_fp" ]] && return 0
+  done <<<"$keys"
+  die "Der lokale Key ${SSH_KEY_FILE} (${local_fp}) gehört zu keinem der Server-Keys (SSH_PUBLIC_KEY/GITHUB_USER). SSH_KEY_FILE in .env anpassen – sonst sperrt fail2ban deine IP."
+}
+
 valid_username() { [[ "$1" =~ ^[a-z_][a-z0-9_-]{0,31}$ && "$1" != root ]]; }
 
 # Wert in .env setzen (vorhandene Zeile ersetzen, sonst anhängen). Rechte bleiben erhalten.

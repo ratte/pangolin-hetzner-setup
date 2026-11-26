@@ -230,6 +230,7 @@ cmd_deploy() {
     info "Bestehender Server, Benutzer: ${ADMIN_USER}"
     [[ -n "${GITHUB_USER:-}${SSH_PUBLIC_KEY:-}" ]] || prompt_ssh_keys
   fi
+  check_local_ssh_key
   info "Infrastruktur anlegen/aktualisieren"
   tf_apply -input=false
   ok "Server: $(server_ip) / $(server_ip6)"
@@ -308,6 +309,7 @@ cmd_recreate() {
   tf init -input=false >/dev/null
   prompt_admin_user
   prompt_ssh_keys
+  check_local_ssh_key
   tf_apply -input=false -replace=hcloud_server.pangolin
   SKIP_REQUIREMENTS=true cmd_deploy
 }
