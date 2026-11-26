@@ -36,7 +36,7 @@ cp .env.example .env && chmod 600 .env   # Token, Domain, E-Mail eintragen
 |---|---|
 | Server | Hetzner Cloud `cx23` (2 vCPU, 4 GB RAM, 40 GB), Ubuntu 24.04, IPv4 + IPv6 |
 | Provisionierung | OpenTofu (Terraform-kompatibel) + cloud-init |
-| SSH-Keys | Automatisch von `https://github.com/ratte.keys` |
+| SSH-Keys | Beim Start abgefragt: GitHub-Benutzer (`github.com/<benutzer>.keys`) oder eigener öffentlicher Key |
 | Login | SSH auf **Port 2222** (22 geschlossen), Benutzer `peng` (beim Start abgefragt) mit sudo, root-Login und Passwort-Login deaktiviert |
 | Firewall | **ufw auf dem Node selbst** (keine Hetzner Cloud Firewall) |
 | Admin-Zugang | Zu Beginn überall offen (`ADMIN_ALLOWED_CIDRS=any`), später einschränkbar |
@@ -72,12 +72,15 @@ cp .env.example .env && chmod 600 .env   # Token, Domain, E-Mail eintragen
 Ablauf von `./setup.sh`:
 
 1. Lokale Voraussetzungen aus `requirements.md` installieren (inkl. OpenTofu)
-2. `tofu apply`: SSH-Keys von GitHub holen, in Hetzner anlegen (vorhandene werden wiederverwendet), Server mit cloud-init erstellen
-3. cloud-init: Pakete, Benutzer, SSH-Härtung, ufw, fail2ban, Auto-Updates, Docker, Pangolin-Dateien
-4. `pangolin-bootstrap` auf dem Server: Secrets erzeugen, Images laden, Stack starten
-5. Lokal warten auf SSH → cloud-init → DNS-Eintrag → gültiges Zertifikat
-6. Setup-Token für den ersten Admin anzeigen
-7. Funktionstest der laufenden Maschine
+2. Abfragen: Benutzername auf dem Server und SSH-Key-Quelle (GitHub-Benutzer oder
+   eigener Key). Die Antworten werden in `.env` gespeichert und beim nächsten Mal
+   vorgeschlagen. Mit `AUTO_APPROVE=true` gibt es keine Rückfragen, dann gelten die Werte aus `.env`.
+3. `tofu apply`: SSH-Keys (von GitHub bzw. aus `.env`) holen, in Hetzner anlegen (vorhandene werden wiederverwendet), Server mit cloud-init erstellen
+4. cloud-init: Pakete, Benutzer, SSH-Härtung, ufw, fail2ban, Auto-Updates, Docker, Pangolin-Dateien
+5. `pangolin-bootstrap` auf dem Server: Secrets erzeugen, Images laden, Stack starten
+6. Lokal warten auf SSH → cloud-init → DNS-Eintrag → gültiges Zertifikat
+7. Setup-Token für den ersten Admin anzeigen
+8. Funktionstest der laufenden Maschine
 
 ## Voraussetzungen
 
@@ -85,7 +88,7 @@ Details in **[requirements.md](requirements.md)**. Kurz:
 
 - Ubuntu/Debian-Rechner mit sudo (das Skript installiert den Rest)
 - Hetzner-Cloud-API-Token (Lesen & Schreiben)
-- Privater SSH-Key zu einem der Keys unter <https://github.com/ratte.keys>
+- Ein SSH-Schlüsselpaar: der öffentliche Teil liegt auf GitHub oder als `.pub`-Datei vor, der private lokal
 - Eine Domain, bei der du DNS-Einträge setzen kannst
 
 ## Schnellstart
@@ -95,7 +98,7 @@ git clone git@github.com:ratte/Pangolin-hetzner-setup.git
 cd Pangolin-hetzner-setup
 cp .env.example .env && chmod 600 .env
 nano .env                      # HCLOUD_TOKEN, DASHBOARD_DOMAIN, BASE_DOMAIN, LETSENCRYPT_EMAIL
-./setup.sh                     # fragt den Server-Benutzer ab (Vorschlag: peng), dann Bestätigung
+./setup.sh                     # fragt Server-Benutzer (Vorschlag: peng) und SSH-Key-Quelle ab
 ```
 
 Während das Skript läuft, zeigt es die Server-IP an. Setze dann beim DNS-Anbieter:
@@ -134,7 +137,8 @@ jederzeit erneut aus. Danach in Pangolin eine Site anlegen und auf dem Zielsyste
 | `TIMEZONE` | `Europe/Zurich` | Zeitzone |
 | `AUTO_REBOOT_TIME` | `04:00` | Neustart nach Kernel-Updates, `off` zum Abschalten |
 | `PROTECTION` | `false` | Hetzner Lösch-/Rebuild-Schutz |
-| `GITHUB_USER` | `ratte` | Quelle der SSH-Keys |
+| `GITHUB_USER` | leer | SSH-Keys von `github.com/<benutzer>.keys` (wird abgefragt) |
+| `SSH_PUBLIC_KEY` | leer | Eigener öffentlicher Key, in Anführungszeichen (wird abgefragt) |
 | `ADMIN_USER` | `peng` | Login-Benutzer auf dem Server, wird vor dem Erstellen abgefragt |
 | `SSH_PORT` | `2222` | SSH-Port auf dem Server |
 | `ADMIN_ALLOWED_CIDRS` | `any` | SSH-Quellnetze beim Erstellen, mehrere in Anführungszeichen mit Leerzeichen |

@@ -44,13 +44,27 @@ variable "image" {
 }
 
 variable "github_user" {
-  description = "GitHub-Benutzer, dessen öffentliche SSH-Keys (https://github.com/<user>.keys) verwendet werden."
+  description = "Optional: GitHub-Benutzer, dessen öffentliche SSH-Keys (https://github.com/<user>.keys) verwendet werden. Leer = keine."
   type        = string
-  default     = "ratte"
+  default     = ""
 
   validation {
-    condition     = can(regex("^[A-Za-z0-9-]{1,39}$", var.github_user))
+    condition     = var.github_user == "" || can(regex("^[A-Za-z0-9-]{1,39}$", var.github_user))
     error_message = "Ungültiger GitHub-Benutzername."
+  }
+}
+
+variable "ssh_public_keys" {
+  description = "Optional: zusätzliche öffentliche SSH-Keys (z. B. \"ssh-ed25519 AAAA...\")."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for k in var.ssh_public_keys :
+      can(regex("^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(256|384|521)|sk-ssh-ed25519@openssh\\.com|sk-ecdsa-sha2-nistp256@openssh\\.com) [A-Za-z0-9+/]+={0,3}( .*)?$", trimspace(k)))
+    ])
+    error_message = "ssh_public_keys enthält einen ungültigen öffentlichen SSH-Key."
   }
 }
 

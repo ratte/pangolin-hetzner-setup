@@ -1,9 +1,10 @@
 ###############################################################################
-# SSH-Keys: öffentliche Keys des GitHub-Benutzers
+# SSH-Keys: GitHub-Benutzer (optional) und/oder direkt angegebene Keys
 ###############################################################################
 
 data "http" "github_keys" {
-  url = "https://github.com/${var.github_user}.keys"
+  count = var.github_user == "" ? 0 : 1
+  url   = "https://github.com/${var.github_user}.keys"
 
   lifecycle {
     postcondition {
@@ -20,15 +21,20 @@ data "hcloud_ssh_keys" "all" {}
 locals {
   managed_label = "pangolin-hetzner-setup"
 
-  github_keys = [
-    for line in split("\n", replace(trimspace(data.http.github_keys.response_body), "\r", "")) :
-    trimspace(line) if length(trimspace(line)) > 0
-  ]
+  github_keys = flatten([
+    for d in data.http.github_keys : [
+      for line in split("\n", replace(trimspace(d.response_body), "\r", "")) :
+      trimspace(line) if length(trimspace(line)) > 0
+    ]
+  ])
 
-  # Normalisiert auf "<typ> <base64>" (ohne Kommentar) für den Vergleich.
-  github_keys_by_norm = {
-    for k in local.github_keys : join(" ", slice(split(" ", k), 0, 2)) => k
+  all_keys = concat(local.github_keys, [for k in var.ssh_public_keys : trimspace(k)])
+
+  # Normalisiert auf "<typ> <base64>" (ohne Kommentar); Duplikate zusammengefasst.
+  keys_grouped = {
+    for k in local.all_keys : join(" ", slice(split(" ", k), 0, 2)) => k...
   }
+  keys_by_norm = { for norm, ks in local.keys_grouped : norm => ks[0] }
 
   existing_unmanaged_keys = {
     for k in data.hcloud_ssh_keys.all.ssh_keys :
@@ -37,24 +43,23 @@ locals {
   }
 
   keys_to_create = {
-    for norm, full in local.github_keys_by_norm : norm => full
+    for norm, full in local.keys_by_norm : norm => full
     if !contains(keys(local.existing_unmanaged_keys), norm)
   }
 
   reused_key_ids = [
     for norm, id in local.existing_unmanaged_keys : id
-    if contains(keys(local.github_keys_by_norm), norm)
+    if contains(keys(local.keys_by_norm), norm)
   ]
 }
 
 resource "hcloud_ssh_key" "github" {
   for_each = local.keys_to_create
 
-  name       = "${var.github_user}-github-${substr(sha256(each.key), 0, 10)}"
+  name       = "${var.server_name}-key-${substr(sha256(each.key), 0, 10)}"
   public_key = each.value
   labels = {
-    "managed-by"  = local.managed_label
-    "github-user" = var.github_user
+    "managed-by" = local.managed_label
   }
 }
 
@@ -118,7 +123,7 @@ locals {
       hostname      = var.server_name
       timezone      = var.timezone
       admin_user    = var.admin_user
-      ssh_keys_json = jsonencode(local.github_keys)
+      ssh_keys_json = jsonencode(values(local.keys_by_norm))
     },
   ))
 }
@@ -150,6 +155,11 @@ resource "hcloud_server" "pangolin" {
   lifecycle {
     # Änderungen an Keys/cloud-init gelten nur bei Neuerstellung (./setup.sh recreate).
     ignore_changes = [ssh_keys, user_data, image]
+
+    precondition {
+      condition     = length(local.keys_by_norm) > 0
+      error_message = "Kein SSH-Key angegeben: github_user oder ssh_public_keys setzen (./setup.sh fragt danach)."
+    }
 
     precondition {
       condition     = length(local.server_ssh_key_ids) > 0

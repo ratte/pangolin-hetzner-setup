@@ -58,7 +58,7 @@ load_env() {
 
   local pair var name
   for pair in \
-    GITHUB_USER:github_user ADMIN_USER:admin_user SERVER_NAME:server_name \
+    ADMIN_USER:admin_user SERVER_NAME:server_name \
     SERVER_TYPE:server_type LOCATION:location IMAGE:image TIMEZONE:timezone \
     AUTO_REBOOT_TIME:auto_reboot_time PANGOLIN_VERSION:pangolin_version \
     GERBIL_VERSION:gerbil_version TRAEFIK_VERSION:traefik_version \
@@ -66,6 +66,8 @@ load_env() {
     var="${pair%%:*}"; name="${pair##*:}"
     if [[ -n "${!var:-}" ]]; then export "TF_VAR_${name}=${!var}"; fi
   done
+
+  export_ssh_key_vars
 
   if [[ -n "${ADMIN_ALLOWED_CIDRS:-}" ]]; then
     # "any" oder Liste mit Leerzeichen -> JSON-Liste für OpenTofu
@@ -90,6 +92,32 @@ load_env() {
   mkdir -p "$STATE_DIR"
   chmod 700 "$STATE_DIR"
 }
+
+# SSH-Key-Quellen an OpenTofu übergeben: GITHUB_USER und/oder SSH_PUBLIC_KEY.
+export_ssh_key_vars() {
+  export TF_VAR_github_user="${GITHUB_USER:-}"
+  TF_VAR_ssh_public_keys="$(jq -nc --arg k "${SSH_PUBLIC_KEY:-}" 'if $k == "" then [] else [$k] end')"
+  export TF_VAR_ssh_public_keys
+}
+
+valid_github_user() { [[ "$1" =~ ^[A-Za-z0-9-]{1,39}$ ]]; }
+
+# Anzahl öffentlicher Keys unter github.com/<user>.keys (0 bei Fehler).
+github_key_count() {
+  local body
+  body="$(curl -fsS --max-time 15 "https://github.com/$1.keys" 2>/dev/null)" || { echo 0; return; }
+  grep -c '^[a-z]' <<<"$body" || true
+}
+
+# Öffentlichen Key auf "<typ> <base64>" kürzen (ohne Kommentar).
+normalize_pubkey() { awk 'NF >= 2 { print $1 " " $2; exit }' <<<"$1" | tr -d '\r'; }
+
+valid_pubkey() {
+  [[ "$1" =~ ^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com)\ [A-Za-z0-9+/]+={0,3}$ ]] \
+    && ssh-keygen -l -f <(echo "$1") >/dev/null 2>&1
+}
+
+pubkey_fingerprint() { ssh-keygen -l -f <(echo "$1") 2>/dev/null | awk '{print $2 " " $NF}'; }
 
 valid_username() { [[ "$1" =~ ^[a-z_][a-z0-9_-]{0,31}$ && "$1" != root ]]; }
 

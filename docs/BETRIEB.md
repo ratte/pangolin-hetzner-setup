@@ -95,7 +95,7 @@ damit ein `apply` den Server nie unbeabsichtigt neu erstellt. Möglichkeiten:
 - **Kleine Änderung**: direkt auf dem Server in `/opt/pangolin/config/…` anpassen und
   `sudo docker compose restart` (Templates im Repo nachziehen!)
 - **Neu aufsetzen**: `./setup.sh backup`, `./setup.sh recreate`, Backup zurückspielen
-- **Neuer GitHub-Key**: auf dem Server in `~peng/.ssh/authorized_keys` ergänzen
+- **Neuer SSH-Key**: auf dem Server in `~peng/.ssh/authorized_keys` ergänzen
   (oder `recreate`)
 
 ## Server löschen
@@ -113,7 +113,7 @@ DNS-Einträge danach selbst entfernen.
 | Symptom | Ursache / Lösung |
 |---|---|
 | Direkter Login ohne Skript | `ssh -p 2222 peng@<ip>` (bzw. dein gewählter Benutzer) |
-| `SSH nicht erreichbar` | Lokaler Key passt nicht zu `github.com/ratte.keys` → `SSH_KEY_FILE` setzen oder `ssh-add` |
+| `SSH nicht erreichbar` | Lokaler privater Key passt nicht zum angegebenen öffentlichen Key (GitHub bzw. `SSH_PUBLIC_KEY`) → `SSH_KEY_FILE` setzen oder `ssh-add` |
 | `REMOTE HOST IDENTIFICATION HAS CHANGED` | Wird durch eigene `known_hosts` pro Server-ID vermieden. Sonst `.state/known_hosts_*` löschen |
 | cloud-init meldet Fehler | `./setup.sh ssh 'sudo cloud-init status --long; sudo tail -100 /var/log/cloud-init-output.log'` |
 | Test „Traefik-Standardzertifikat“ | DNS zeigt noch nicht auf den Server oder falscher AAAA-Record. `./setup.sh ssh 'sudo docker logs traefik 2>&1 \| grep -i acme'`, danach `sudo docker restart traefik` |

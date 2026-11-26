@@ -42,8 +42,9 @@ OpenTofu lädt beim `init` automatisch diese Provider:
 
 - **Hetzner Cloud**: Projekt und API-Token mit Lese-/Schreibrechten
   (Console → Projekt → Sicherheit → API-Tokens)
-- **GitHub**: Benutzer `ratte` mit mindestens einem öffentlichen SSH-Key
-  (<https://github.com/ratte.keys>). Der passende private Key muss lokal im
+- **SSH-Key**: entweder ein GitHub-Benutzer mit mindestens einem öffentlichen
+  SSH-Key (`https://github.com/<benutzer>.keys`) oder ein eigener öffentlicher Key
+  (`.pub`-Datei). `./setup.sh` fragt danach. Der passende private Key muss lokal im
   `ssh-agent` oder unter `~/.ssh/` liegen (oder per `SSH_KEY_FILE` angegeben werden).
 - **DNS**: Zugriff auf die DNS-Zone der Domain, um den A-Record (und optional
   AAAA sowie einen Wildcard-Record) auf den Server zu setzen

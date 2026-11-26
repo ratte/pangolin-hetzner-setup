@@ -36,7 +36,7 @@ wait_for_ssh() {
   info "Warte auf SSH-Zugang als ${ADMIN_USER}@$(server_ip):$(server_ssh_port) (max. 10 min)"
   local deadline=$((SECONDS + 600))
   until remote true 2>/dev/null; do
-    (( SECONDS < deadline )) || die "SSH nicht erreichbar. Passt dein lokaler Key zu https://github.com/${GITHUB_USER:-ratte}.keys? (SSH_KEY_FILE in .env)"
+    (( SECONDS < deadline )) || die "SSH nicht erreichbar. Passt dein lokaler privater Key zu den angegebenen öffentlichen Keys? (SSH_KEY_FILE in .env)"
     sleep 10
   done
   ok "SSH erreichbar"
@@ -141,6 +141,78 @@ prompt_admin_user() {
   export TF_VAR_admin_user="$user"
 }
 
+# SSH-Key-Quelle für den neuen Server abfragen: GitHub-Benutzer oder eigener Key.
+prompt_ssh_keys() {
+  if [[ "${AUTO_APPROVE:-false}" == "true" || ! -t 0 ]]; then
+    [[ -n "${GITHUB_USER:-}${SSH_PUBLIC_KEY:-}" ]] \
+      || die "Kein SSH-Key: GITHUB_USER oder SSH_PUBLIC_KEY in .env setzen (oder interaktiv starten)."
+    [[ -n "${GITHUB_USER:-}" ]] && info "SSH-Keys von github.com/${GITHUB_USER}.keys"
+    [[ -n "${SSH_PUBLIC_KEY:-}" ]] && info "SSH-Key aus .env: $(pubkey_fingerprint "$SSH_PUBLIC_KEY")"
+    export_ssh_key_vars
+    return
+  fi
+
+  local default_choice=1 choice answer count input key keyfile="" default_input
+  [[ -n "${SSH_PUBLIC_KEY:-}" && -z "${GITHUB_USER:-}" ]] && default_choice=2
+  echo
+  info "Woher kommt der SSH-Key für den Server?"
+  echo "    1) Öffentliche Keys eines GitHub-Benutzers (github.com/<benutzer>.keys)"
+  echo "    2) Eigener öffentlicher Key (Pfad zur .pub-Datei oder Key einfügen)"
+  while true; do
+    read -r -p "Auswahl [${default_choice}]: " choice
+    choice="${choice:-$default_choice}"
+    [[ "$choice" == 1 || "$choice" == 2 ]] && break
+    warn "Bitte 1 oder 2 eingeben."
+  done
+
+  if [[ "$choice" == 1 ]]; then
+    while true; do
+      read -r -p "GitHub-Benutzername${GITHUB_USER:+ [${GITHUB_USER}]}: " answer
+      answer="${answer:-${GITHUB_USER:-}}"
+      if ! valid_github_user "$answer"; then warn "Ungültiger GitHub-Benutzername."; continue; fi
+      count="$(github_key_count "$answer")"
+      if (( count > 0 )); then ok "${count} öffentliche(r) Key(s) unter github.com/${answer}.keys"; break; fi
+      warn "Unter https://github.com/${answer}.keys wurden keine Keys gefunden."
+    done
+    GITHUB_USER="$answer"; SSH_PUBLIC_KEY=""
+  else
+    default_input=""
+    if [[ -n "${SSH_PUBLIC_KEY:-}" ]]; then
+      default_input="aus .env"
+    else
+      for f in ~/.ssh/id_ed25519.pub ~/.ssh/id_ecdsa.pub ~/.ssh/id_rsa.pub; do
+        [[ -f "$f" ]] && { default_input="$f"; break; }
+      done
+    fi
+    while true; do
+      read -r -p "Pfad zur .pub-Datei oder Key einfügen${default_input:+ [${default_input}]}: " input
+      input="${input:-$default_input}"
+      keyfile=""
+      if [[ "$input" == "aus .env" ]]; then
+        key="$(normalize_pubkey "$SSH_PUBLIC_KEY")"
+      else
+        input="${input/#\~/$HOME}"
+        if [[ -f "$input" ]]; then keyfile="$input"; key="$(normalize_pubkey "$(head -n1 "$input")")"
+        else key="$(normalize_pubkey "$input")"; fi
+      fi
+      if valid_pubkey "$key"; then ok "Key: $(pubkey_fingerprint "$key")"; break; fi
+      warn "Kein gültiger öffentlicher SSH-Key (erwartet z. B. 'ssh-ed25519 AAAA…' oder eine .pub-Datei)."
+    done
+    SSH_PUBLIC_KEY="$key"; GITHUB_USER=""
+    # Passenden privaten Key automatisch für die Verbindung verwenden.
+    if [[ -n "$keyfile" && "$keyfile" == *.pub && -f "${keyfile%.pub}" && -z "${SSH_KEY_FILE:-}" ]]; then
+      SSH_KEY_FILE="${keyfile%.pub}"
+      set_env_value SSH_KEY_FILE "$SSH_KEY_FILE"
+      ok "SSH_KEY_FILE=${SSH_KEY_FILE} in .env gespeichert"
+    fi
+  fi
+
+  set_env_value GITHUB_USER "${GITHUB_USER}"
+  set_env_value SSH_PUBLIC_KEY "\"${SSH_PUBLIC_KEY}\""
+  ok "SSH-Key-Quelle in .env gespeichert"
+  export_ssh_key_vars
+}
+
 cmd_deploy() {
   if [[ "${SKIP_REQUIREMENTS:-false}" != "true" ]]; then
     bash "$REPO_DIR/scripts/install-requirements.sh"
@@ -152,8 +224,10 @@ cmd_deploy() {
   ok "Provider bereit"
   if [[ -z "$(server_id)" ]]; then
     prompt_admin_user
+    prompt_ssh_keys
   else
     info "Bestehender Server, Benutzer: ${ADMIN_USER}"
+    [[ -n "${GITHUB_USER:-}${SSH_PUBLIC_KEY:-}" ]] || prompt_ssh_keys
   fi
   info "Infrastruktur anlegen/aktualisieren"
   tf_apply -input=false
@@ -231,6 +305,7 @@ cmd_recreate() {
   confirm "Wirklich neu aufsetzen?" || die "Abgebrochen."
   tf init -input=false >/dev/null
   prompt_admin_user
+  prompt_ssh_keys
   tf_apply -input=false -replace=hcloud_server.pangolin
   SKIP_REQUIREMENTS=true cmd_deploy
 }
