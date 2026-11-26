@@ -34,7 +34,7 @@ cp .env.example .env && chmod 600 .env   # Token, Domain, E-Mail eintragen
 
 | Bereich | Umsetzung |
 |---|---|
-| Server | Hetzner Cloud `cx23` (2 vCPU, 4 GB RAM, 40 GB), Ubuntu 24.04, IPv4 + IPv6 |
+| Server | Hetzner Cloud `cx23` (2 vCPU, 4 GB RAM, 40 GB), Ubuntu 26.04, IPv4 + IPv6 |
 | Provisionierung | OpenTofu (Terraform-kompatibel) + cloud-init |
 | SSH-Keys | Beim Start abgefragt: GitHub-Benutzer (`github.com/<benutzer>.keys`) oder eigener öffentlicher Key |
 | Login | SSH auf **Port 2222** (22 geschlossen), Benutzer `peng` (beim Start abgefragt) mit sudo, root-Login und Passwort-Login deaktiviert |
@@ -137,7 +137,7 @@ jederzeit erneut aus. Danach in Pangolin eine Site anlegen und auf dem Zielsyste
 | `SERVER_NAME` | `pangolin` | Servername/Hostname |
 | `SERVER_TYPE` | `cx23` | Hetzner-Servertyp |
 | `LOCATION` | `nbg1` | Standort (`nbg1`, `fsn1`, `hel1`, …) |
-| `IMAGE` | `ubuntu-24.04` | Nur Ubuntu wird unterstützt |
+| `IMAGE` | `ubuntu-26.04` | Nur Ubuntu wird unterstützt |
 | `TIMEZONE` | `Europe/Zurich` | Zeitzone |
 | `AUTO_REBOOT_TIME` | `04:00` | Neustart nach Kernel-Updates, `off` zum Abschalten |
 | `PROTECTION` | `false` | Hetzner Lösch-/Rebuild-Schutz |
@@ -176,7 +176,7 @@ jederzeit erneut aus. Danach in Pangolin eine Site anlegen und auf dem Zielsyste
   (`openssl rand -hex 32`) und der einmalige Setup-Token werden erst auf dem Server
   erzeugt. Der Hetzner-API-Token steht nur in `.env` (gitignored). Als
   Provider-Argument landet er nicht im tfstate.
-- **SSH**: Port 2222 (die Socket-Aktivierung von Ubuntu 24.04 auf Port 22 wird
+- **SSH**: Port 2222 (die Socket-Aktivierung von Ubuntu (ab 24.04) auf Port 22 wird
   abgeschaltet), nur Public-Key, nur der Admin-Benutzer (Standard `peng`), kein root, `MaxAuthTries 3`.
   Hetzner erhält die Keys ebenfalls, deshalb wird kein root-Passwort per Mail verschickt.
 - **Firewall auf dem Node (ufw)**: eingehend alles blockiert ausser den nötigen Ports.

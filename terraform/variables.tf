@@ -33,13 +33,13 @@ variable "location" {
 }
 
 variable "image" {
-  description = "Betriebssystem-Image. Ausgelegt auf Ubuntu 24.04 (docker-compose-v2 aus Ubuntu-Paketen)."
+  description = "Betriebssystem-Image. Ausgelegt auf Ubuntu 26.04 (docker-compose-v2 aus Ubuntu-Paketen)."
   type        = string
-  default     = "ubuntu-24.04"
+  default     = "ubuntu-26.04"
 
   validation {
     condition     = startswith(var.image, "ubuntu-")
-    error_message = "Nur Ubuntu-Images werden unterstützt (z. B. ubuntu-24.04)."
+    error_message = "Nur Ubuntu-Images werden unterstützt (z. B. ubuntu-26.04)."
   }
 }
 
